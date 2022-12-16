@@ -8,6 +8,7 @@
   "dependencies": {
     "express": "^4.18.2",
     "face-api.js": "^0.22.2",
+    "http": "*",
     "node-fetch": "^3.3.0"
   }
 }
