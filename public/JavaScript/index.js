@@ -1,6 +1,11 @@
 const faceapi = require('./../FRModels/face-api.min.js');
 const { CustomLogger } = require('./CustomLogger.js');
 const https = require('https');
+const fs = require('fs');
+
+const { Canvas, Image } = require('canvas');
+const canvas = require('canvas');
+
 //const faceapi = require('face-api.js');
 //const nodeFetch = require('node-fetch');
 const nodeFetch = (...args) =>
@@ -14,7 +19,7 @@ const MODELS_PATH = path.join(__dirname, './../ModelsEdited');
 //globalThis.fetch = fetch;
 
 // Make face-api.js use that fetch implementation
-faceapi.env.monkeyPatch({ fetch: nodeFetch });
+faceapi.env.monkeyPatch({ fetch: nodeFetch, Canvas, Image });
 
 const APIAccessCode =
   'AKfycbwip48-94Ot2WwXuxGlBYgB6HoDWc4_VcSuYztNCD2SSu3qav5xDkXFoRARfnRGrqY1';
@@ -31,7 +36,7 @@ async function loadRequiredModels() {
       faceapi.nets.faceRecognitionNet.loadFromDisk(MODELS_PATH),
       faceapi.nets.faceLandmark68Net.loadFromDisk(MODELS_PATH),
       faceapi.nets.ssdMobilenetv1.loadFromDisk(MODELS_PATH),
-    ]).then(AccessDriveImages(FolderAccessCode));
+    ]).then(AccessLocalImages()); //(AccessDriveImages(FolderAccessCode));
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
   }
@@ -51,9 +56,15 @@ function loadLabeledImages(paths) {
     labels.map(async (label) => {
       const descriptions = [];
       label.filesList.map(async (fileItem) => {
-        const imgSource = 'data:image/jpeg;base64,' + fileItem.base64;
+        /*
+        //const imgSource = 'data:image/jpeg;base64,' + fileItem.base64;
+        const imgSource = fileItem.fileURL;
         const img = new Image();
         img.src = imgSource;
+        /** /
+        const img = await faceapi.fetchImage(fileItem.fileURL);
+        /**/
+        const img = await canvas.loadImage(fileItem.fileURL);
         const detections = await faceapi
           .detectSingleFace(img)
           .withFaceLandmarks()
@@ -65,6 +76,50 @@ function loadLabeledImages(paths) {
     })
   );
 }
+
+async function GetFilesFromFolders(folderPath, folderName = '') {
+  try {
+    //const LABELED_IMAGES_PATH = path.join(__dirname, './../Pictures');
+    const LABELED_IMAGES_PATH = path.join(__dirname, folderPath);
+    let fileObjects = [];
+    await fs.readdirSync(LABELED_IMAGES_PATH).forEach(async (file) => {
+      if (!file.toString().includes('.')) {
+        let listOfFiles = await GetFilesFromFolders(
+          folderPath + '/' + file.toString(),
+          file
+        );
+        if (listOfFiles !== null && listOfFiles !== undefined) {
+          const folderObject = {
+            folderName: file,
+            filesList: listOfFiles,
+          };
+          fileObjects.push(folderObject);
+        }
+      } else {
+        const imageObject = {
+          folderName: folderName,
+          base64: '',
+          fileURL: path.join(__dirname, folderPath + '/' + file.toString()),
+        };
+        fileObjects.push(imageObject);
+      }
+    });
+    return fileObjects;
+  } catch (ex) {
+    CustomLogger.ErrorLogger(ex);
+  }
+}
+
+async function AccessLocalImages() {
+  try {
+    const allData = await GetFilesFromFolders('./../Pictures');
+    loadDataBase(allData);
+    CustomLogger.DataLogger(allData);
+  } catch (ex) {
+    CustomLogger.ErrorLogger(ex);
+  }
+}
+
 async function AccessDriveImages(accessID) {
   //divPopupDisplay.style.visibility = 'hidden';
   var urlPart1 = 'https://script.google.com/macros/s/';
@@ -109,7 +164,7 @@ async function AccessDriveImages(accessID) {
   req.write(dbParam);
   req.end();
 /**/
-  /** /
+    /** /
   await nodeFetch(serviceURLFinal, {
     method: 'POST', // *GET, POST, PUT, DELETE, etc.
     //mode: 'cors', // no-cors, *cors, same-origin
@@ -131,7 +186,7 @@ async function AccessDriveImages(accessID) {
       CustomLogger.ErrorLogger(ex);
     });
   /**/
-  /*
+    /*
   var xobj = new XMLHttpRequest();
   xobj.onreadystatechange = function () {
     if (xobj.readyState == 4 && xobj.status == 200) {
@@ -168,12 +223,45 @@ async function AccessDriveImages(accessID) {
     xobj.send(dbParam);  
   }
   */
+  };
 }
-loadRequiredModels();
-function logData() {
+
+async function TestFunction() {
   try {
-    CustomLogger.MessageLogger('Loaded Models, You can work on it now');
+    //AccessLocalImages();
+    loadRequiredModels();
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
   }
 }
+//loadRequiredModels();
+TestFunction();
+function logData() {
+  try {
+    CustomLogger.MessageLogger(
+      'Loaded Models, and Images also, You can work on it now'
+    );
+  } catch (ex) {
+    CustomLogger.ErrorLogger(ex);
+  }
+}
+/*
+async function GetFilesFromFolders2(folderPath) {
+  try {
+    //const LABELED_IMAGES_PATH = path.join(__dirname, './../Pictures');
+    const LABELED_IMAGES_PATH = path.join(__dirname, folderPath);
+    await fs.readdir(LABELED_IMAGES_PATH, (err, files) => {
+      files.forEach((file) => {
+        if (!file.toString().includes('.')) {
+          GetFilesFromFolders2(folderPath + '/' + file.toString());
+        } else {
+          console.log(JSON.stringify(file));
+        }
+      });
+    });
+    console.log('Completed Execution 1');
+  } catch (ex) {
+    CustomLogger.ErrorLogger(ex);
+  }
+}
+*/
