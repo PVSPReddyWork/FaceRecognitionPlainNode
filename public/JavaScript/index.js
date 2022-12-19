@@ -28,7 +28,7 @@ var labeledImagesPaths = [];
 var faceDescriptions = [];
 var faceMatcher = null;
 var faceapi = faceapiModule;
-async function loadRequiredModels() {
+const loadRequiredModels = async () => {
   try {
     faceDescriptions = [];
     faceMatcher = null;
@@ -51,7 +51,7 @@ async function loadRequiredModels() {
               .then((result) => {
                 console.log('faceLandmark68Net result >>>>>>');
                 console.log(result);
-                AccessLocalImages();
+                //AccessLocalImages();
               })
               .catch((error) => {
                 console.log('faceLandmark68Net error >>>>>>');
@@ -86,7 +86,7 @@ async function loadRequiredModels() {
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
   }
-}
+};
 async function loadDataBase(labeledImagesPaths) {
   try {
     CustomLogger.MessageLogger('Training Models with data starting');
@@ -100,28 +100,89 @@ async function loadDataBase(labeledImagesPaths) {
     CustomLogger.ErrorLogger(ex);
   }
 }
+
+function loadLabeledImages2(paths) {
+  const labels = [
+    'Black Widow',
+    'Captain America',
+    'Captain Marvel',
+    'Hawkeye',
+    'Jim Rhodes',
+    'Thor',
+    'Tony Stark',
+  ];
+  return Promise.all(
+    labels.map(async (label) => {
+      const descriptions = [];
+      for (let i = 1; i <= 2; i++) {
+        const img = await faceapi.fetchImage(
+          `https://raw.githubusercontent.com/WebDevSimplified/Face-Recognition-JavaScript/master/labeled_images/${label}/${i}.jpg`
+        );
+        const detections = await faceapi
+          .detectSingleFace(img)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+        descriptions.push(detections.descriptor);
+      }
+
+      return new faceapi.LabeledFaceDescriptors(label, descriptions);
+    })
+  );
+}
+
+async function getImageFromSource(input) {
+  const img = await canvas.loadImage(input);
+  const c = canvas.createCanvas(img.width, img.height);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, img.width, img.height);
+  // const out = fs.createWriteStream('test.jpg');
+  // const stream = c.createJPEGStream({ quality: 0.6, progressive: true, chromaSubsampling: true });
+  // stream.pipe(out);
+  return c;
+}
+
 function loadLabeledImages(paths) {
   const labels = paths;
   return Promise.all(
     labels.map(async (label) => {
       const descriptions = [];
       label.filesList.map(async (fileItem) => {
-        /**/
+        /** /
         //const imgSource = 'data:image/jpeg;base64,' + fileItem.base64;
-        const imgSource = fileItem.fileURL;
+        const imgSource = fileItem.fileURL;//fileItem.base64;
         const img = new Image();
         img.src = imgSource;
         /**/
-        /* * /
+        /** /
         const img = await faceapi.fetchImage(fileItem.fileURL);
         /**/
+        /*
+        const img = new Image();
+
+        img.onload = async () => {
+          //resolve(img);
+          const detections = await faceapi
+          .detectSingleFace(img)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+        //descriptions.push(detections.descriptor);
+        faceDescriptions.push(detections.descriptor);
+        };
+        img.onerror = () => {
+          reject(new Error('Failed to load image'))
+        };        
+        img.src = fileItem.fileURL;
+        */
         //const img = await canvas.loadImage(fileItem.fileURL);
+        /**/
+        const img = await getImageFromSource(fileItem.base64);
         const detections = await faceapi
           .detectSingleFace(img)
           .withFaceLandmarks()
           .withFaceDescriptor();
         //descriptions.push(detections.descriptor);
         faceDescriptions.push(detections.descriptor);
+        /**/
       });
       CustomLogger.MessageLogger('Training Models with data Completing');
       return new faceapi.LabeledFaceDescriptors(label.folderName, descriptions);
@@ -148,9 +209,14 @@ async function GetFilesFromFolders(folderPath, folderName = '') {
           fileObjects.push(folderObject);
         }
       } else {
+        const imagePath = path.join(
+          __dirname,
+          folderPath + '/' + file.toString()
+        );
+        var imageAsBase64 = await fs.readFileSync(imagePath, 'base64');
         const imageObject = {
           folderName: folderName,
-          base64: '',
+          base64: 'data:image/jpeg;base64,' + imageAsBase64, //'',//'data:image/jpeg;base64,' + imageAsBase64,
           fileURL: path.join(__dirname, folderPath + '/' + file.toString()),
         };
         fileObjects.push(imageObject);
@@ -162,20 +228,21 @@ async function GetFilesFromFolders(folderPath, folderName = '') {
   }
 }
 
-async function AccessLocalImages() {
+const AccessLocalImages = async () => {
   try {
     CustomLogger.MessageLogger('Loaded Models');
     CustomLogger.MessageLogger('Obtaining Images');
     const allData = await GetFilesFromFolders('./../Pictures');
+    labeledImagesPaths = allData;
     CustomLogger.MessageLogger('Obtained Images');
-    CustomLogger.DataLogger(allData);
-    CustomLogger.MessageLogger('Training Models with data');
-    loadDataBase(allData);
+    //CustomLogger.DataLogger(allData);
+    //CustomLogger.MessageLogger("Training Models with data");
+    //loadDataBase(allData);
     /**/
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
   }
-}
+};
 
 async function AccessDriveImages(accessID) {
   //divPopupDisplay.style.visibility = 'hidden';
@@ -283,6 +350,15 @@ async function AccessDriveImages(accessID) {
   };
 }
 
+const AddImagesToModels = async () => {
+  try {
+    CustomLogger.MessageLogger('Training Models with data');
+    loadDataBase(labeledImagesPaths);
+  } catch (ex) {
+    CustomLogger.ErrorLogger(ex);
+  }
+};
+
 async function TestFunction() {
   try {
     loadRequiredModels();
@@ -290,7 +366,7 @@ async function TestFunction() {
     CustomLogger.ErrorLogger(ex);
   }
 }
-loadRequiredModels();
+//loadRequiredModels();
 //TestFunction();
 function logData() {
   try {
@@ -301,6 +377,9 @@ function logData() {
     CustomLogger.ErrorLogger(ex);
   }
 }
+
+//const
+module.exports = { loadRequiredModels, AccessLocalImages, AddImagesToModels };
 /*
 async function GetFilesFromFolders2(folderPath) {
   try {
