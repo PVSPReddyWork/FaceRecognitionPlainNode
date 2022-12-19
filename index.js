@@ -11,6 +11,16 @@ app.get('/', (req, res) => {
   res.sendFile(path.resolve('./public/index.html'));
 });
 
+app.get('/LoadModels', (req, res) => {
+  res.send('loaded');
+});
+
+app.post('/CheckForImage', function (req, res) {
+  console.log('receiving data ...');
+  console.log('body is ', req.body);
+  res.send(req.body);
+});
+
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`);
 });

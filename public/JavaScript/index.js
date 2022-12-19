@@ -1,9 +1,9 @@
-const faceapi = require('./../FRModels/face-api.min.js');
+const faceapiModule = require('./../FRModels/face-api.min.js');
 const { CustomLogger } = require('./CustomLogger.js');
 const https = require('https');
 const fs = require('fs');
 
-const { Canvas, Image } = require('canvas');
+//const { Canvas, Image, loadImage } = require('canvas');
 const canvas = require('canvas');
 
 //const faceapi = require('face-api.js');
@@ -14,12 +14,11 @@ const nodeFetch = (...args) =>
 
 const path = require('path');
 //const MODELS_PATH = path.join(__dirname, './../FRModels');
-const MODELS_PATH = path.join(__dirname, './../ModelsEdited');
 //const MODELS_PATH = './../FRModels';
 //globalThis.fetch = fetch;
 
 // Make face-api.js use that fetch implementation
-faceapi.env.monkeyPatch({ fetch: nodeFetch, Canvas, Image });
+const { Canvas, Image, ImageData } = canvas;
 
 const APIAccessCode =
   'AKfycbwip48-94Ot2WwXuxGlBYgB6HoDWc4_VcSuYztNCD2SSu3qav5xDkXFoRARfnRGrqY1';
@@ -28,23 +27,74 @@ const FolderAccessCode = '1oEho4aHL_OPxPAUYBAKGRVHtwY7Lju37';
 var labeledImagesPaths = [];
 var faceDescriptions = [];
 var faceMatcher = null;
+var faceapi = faceapiModule;
 async function loadRequiredModels() {
   try {
     faceDescriptions = [];
     faceMatcher = null;
+    faceapi.env.monkeyPatch({ fetch: nodeFetch });
+    faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
+    const MODELS_PATH = path.join(__dirname, './../ModelsEdited');
+
+    faceapi.nets.ssdMobilenetv1
+      .loadFromDisk(MODELS_PATH)
+      .then((result) => {
+        console.log('SSD model result >>>>>>');
+        console.log(result);
+        faceapi.nets.faceRecognitionNet
+          .loadFromDisk(MODELS_PATH)
+          .then((result) => {
+            console.log('faceRecognitionNet result >>>>>>');
+            console.log(result);
+            faceapi.nets.faceLandmark68Net
+              .loadFromDisk(MODELS_PATH)
+              .then((result) => {
+                console.log('faceLandmark68Net result >>>>>>');
+                console.log(result);
+                AccessLocalImages();
+              })
+              .catch((error) => {
+                console.log('faceLandmark68Net error >>>>>>');
+                console.log(error);
+              });
+          })
+          .catch((error) => {
+            console.log('faceRecognitionNet error >>>>>>');
+            console.log(error);
+          });
+      })
+      .catch((error) => {
+        console.log('SSD Model error >>>>>>');
+        console.log(error);
+      });
+
+    /*
+    faceapi.nets.ssdMobilenetv1.loadFromDisk(MODELS_PATH).then(result => {
+      console.log(result);
+    }).catch(error => {
+      console.log(error)
+    })
+    */
+
+    /*
     Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromDisk(MODELS_PATH),
       faceapi.nets.faceRecognitionNet.loadFromDisk(MODELS_PATH),
       faceapi.nets.faceLandmark68Net.loadFromDisk(MODELS_PATH),
-      faceapi.nets.ssdMobilenetv1.loadFromDisk(MODELS_PATH),
     ]).then(AccessLocalImages()); //(AccessDriveImages(FolderAccessCode));
+    */
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
   }
 }
 async function loadDataBase(labeledImagesPaths) {
   try {
+    CustomLogger.MessageLogger('Training Models with data starting');
     const labeledFaceDescriptors = await loadLabeledImages(labeledImagesPaths);
+    CustomLogger.MessageLogger('Training Models with data Completed');
+    CustomLogger.MessageLogger('Detections Data is adding to faceAPI');
     faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+    CustomLogger.MessageLogger('Detections Data is added to faceAPI');
     logData();
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
@@ -56,15 +106,16 @@ function loadLabeledImages(paths) {
     labels.map(async (label) => {
       const descriptions = [];
       label.filesList.map(async (fileItem) => {
-        /*
+        /**/
         //const imgSource = 'data:image/jpeg;base64,' + fileItem.base64;
         const imgSource = fileItem.fileURL;
         const img = new Image();
         img.src = imgSource;
-        /** /
+        /**/
+        /* * /
         const img = await faceapi.fetchImage(fileItem.fileURL);
         /**/
-        const img = await canvas.loadImage(fileItem.fileURL);
+        //const img = await canvas.loadImage(fileItem.fileURL);
         const detections = await faceapi
           .detectSingleFace(img)
           .withFaceLandmarks()
@@ -72,6 +123,7 @@ function loadLabeledImages(paths) {
         //descriptions.push(detections.descriptor);
         faceDescriptions.push(detections.descriptor);
       });
+      CustomLogger.MessageLogger('Training Models with data Completing');
       return new faceapi.LabeledFaceDescriptors(label.folderName, descriptions);
     })
   );
@@ -112,9 +164,14 @@ async function GetFilesFromFolders(folderPath, folderName = '') {
 
 async function AccessLocalImages() {
   try {
+    CustomLogger.MessageLogger('Loaded Models');
+    CustomLogger.MessageLogger('Obtaining Images');
     const allData = await GetFilesFromFolders('./../Pictures');
-    loadDataBase(allData);
+    CustomLogger.MessageLogger('Obtained Images');
     CustomLogger.DataLogger(allData);
+    CustomLogger.MessageLogger('Training Models with data');
+    loadDataBase(allData);
+    /**/
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
   }
@@ -228,14 +285,13 @@ async function AccessDriveImages(accessID) {
 
 async function TestFunction() {
   try {
-    //AccessLocalImages();
     loadRequiredModels();
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
   }
 }
-//loadRequiredModels();
-TestFunction();
+loadRequiredModels();
+//TestFunction();
 function logData() {
   try {
     CustomLogger.MessageLogger(
