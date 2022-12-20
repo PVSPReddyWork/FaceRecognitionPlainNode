@@ -3,7 +3,8 @@ const app = express();
 const port = 3010;
 const path = require('path');
 
-const faceAPILocal = require('./public/JavaScript/index.js');
+//const faceAPILocal = require('./public/JavaScript/index.js');
+const mongoDataBase = require('./public/JavaScript/MongoDB.js');
 
 //app.use(express.static('static'));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -17,18 +18,22 @@ app.post('/CheckForImage', function (req, res) {
   res.send(req.body);
 });
 
-/**/
+/* Testing the project*/
 app.get('/LoadModels', (req, res) => {
-  faceAPILocal.loadRequiredModels();
+  //faceAPILocal.loadRequiredModels();
   res.send('loaded');
 });
 app.get('/GetImagesData', (req, res) => {
-  faceAPILocal.AccessLocalImages();
+  //faceAPILocal.AccessLocalImages();
   res.send('loaded');
 });
 app.get('/AssignToModels', (req, res) => {
-  faceAPILocal.AddImagesToModels();
+  //faceAPILocal.AddImagesToModels();
   res.send('loaded');
+});
+app.get('/testDB', async (req, res) => {
+  var response = await mongoDataBase.TestMongoConnection();
+  res.send(JSON.stringify(response));
 });
 /**/
 
