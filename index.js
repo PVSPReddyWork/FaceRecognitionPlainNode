@@ -3,8 +3,9 @@ const app = express();
 const port = 3010;
 const path = require('path');
 
-const faceAPILocal = require('./public/JavaScript/index.js');
-const mongoDataBase = require('./public/JavaScript/MongoDB.js');
+//const faceAPILocal = require('./public/JavaScript/index.js');
+//const mongoDataBase = require('./public/JavaScript/MongoDB.js');
+const AccessFolders = require('./public/JavaScript/AccessFolders.js');
 
 //app.use(express.static('static'));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -20,13 +21,19 @@ app.post('/CheckForImage', function (req, res) {
 
 /* Testing the project*/
 app.get('/LoadModels', (req, res) => {
-  faceAPILocal.loadRequiredModels();
+  //faceAPILocal.loadRequiredModels();
   res.send('loaded');
 });
 
 app.get('/GetImagesData', async (req, res) => {
-  var data = await faceAPILocal.AddImagesToModels();
+  //var data = await faceAPILocal.AddImagesToModels();
   res.send(data);
+});
+
+app.post('/GetFilesJSON', async function (req, res) {
+  console.log('body is ', req.body);
+  await AccessFolders.GetImagesFromFolders(req.body.filesPath, false);
+  res.send(req.body);
 });
 /*
 app.get('/AssignToModels', (req, res) => {
