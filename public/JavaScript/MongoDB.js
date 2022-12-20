@@ -6,14 +6,29 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
+
+/* to create a database
+var url = "mongodb://localhost:27017/mydb";
+
+MongoClient(url, function(err, db) {
+  if (err) throw err;
+  console.log("Database created!");
+  db.close();
+});
+
+*/
+
+//db//face_recognition
+//collection//face_descriptiors
+
 const TestMongoConnection = async () => {
-  var clientConnection = await client.connect();
-  console.log(clientConnection);
-  const collection = client.db('test').collection('devices');
-  console.log(collection);
-  // perform actions on the collection object
+  await client.connect();
+  const db = client.db('test');
+  const collection = db.collection('devices');
+  const values = await collection.find({}).toArray();
+  //const collection = client.db('test').collection('devices');
   client.close();
-  return collection;
+  return values;
 };
 
 module.exports = { TestMongoConnection };

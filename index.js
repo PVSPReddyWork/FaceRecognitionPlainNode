@@ -33,7 +33,7 @@ app.get('/AssignToModels', (req, res) => {
 });
 app.get('/testDB', async (req, res) => {
   var response = await mongoDataBase.TestMongoConnection();
-  res.send(JSON.stringify(response));
+  res.send(response);
 });
 /**/
 
