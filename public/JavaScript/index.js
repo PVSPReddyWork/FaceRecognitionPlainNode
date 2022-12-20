@@ -1,7 +1,10 @@
-const faceapiModule = require('./../FRModels/face-api.min.js');
+//const faceapiModule = require('./../FRModels/face-api.min.js');
+const faceapiModule = require('face-api.js');
 const { CustomLogger } = require('./CustomLogger.js');
 const https = require('https');
 const fs = require('fs');
+
+const mongoDataBase = require('./MongoDB.js');
 
 //const { Canvas, Image, loadImage } = require('canvas');
 const canvas = require('canvas');
@@ -18,7 +21,7 @@ const path = require('path');
 //globalThis.fetch = fetch;
 
 // Make face-api.js use that fetch implementation
-const { Canvas, Image, ImageData } = canvas;
+const { Canvas, Image, loadImage, ImageData } = canvas;
 
 const APIAccessCode =
   'AKfycbwip48-94Ot2WwXuxGlBYgB6HoDWc4_VcSuYztNCD2SSu3qav5xDkXFoRARfnRGrqY1';
@@ -28,12 +31,16 @@ var labeledImagesPaths = [];
 var faceDescriptions = [];
 var faceMatcher = null;
 var faceapi = faceapiModule;
+
+faceapi.env.monkeyPatch({ fetch: nodeFetch });
+faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
+
 const loadRequiredModels = async () => {
   try {
     faceDescriptions = [];
     faceMatcher = null;
-    faceapi.env.monkeyPatch({ fetch: nodeFetch });
-    faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
+    //faceapi.env.monkeyPatch({ fetch: nodeFetch });
+    //faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
     const MODELS_PATH = path.join(__dirname, './../ModelsEdited');
 
     faceapi.nets.ssdMobilenetv1
@@ -51,7 +58,7 @@ const loadRequiredModels = async () => {
               .then((result) => {
                 console.log('faceLandmark68Net result >>>>>>');
                 console.log(result);
-                //AccessLocalImages();
+                AccessLocalImages();
               })
               .catch((error) => {
                 console.log('faceLandmark68Net error >>>>>>');
@@ -101,6 +108,34 @@ async function loadDataBase(labeledImagesPaths) {
   }
 }
 
+async function loadLabeledImages(paths) {
+  const labels = paths;
+  labels.map(async (label) => {
+    const descriptions = [];
+    label.filesList.map(async (fileItem) => {
+      console.log(fileItem.fileURL);
+      //const img = await canvas.loadImage(fileItem.fileURL);
+      const img = await canvas.loadImage(fileItem.base64);
+      const detections = await faceapi
+        .detectSingleFace(img)
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+      descriptions.push(detections.descriptor);
+    });
+    /**/
+    const dbData = {
+      label: label.folderName,
+      descriptions: descriptions,
+    };
+    /**/
+    //console.log(dbData);
+    var responses = await mongoDataBase.SaveFaceDescriptiors([dbData]);
+    console.log(responses);
+    //CustomLogger.MessageLogger('Data is logged to database');
+    //return new faceapi.LabeledFaceDescriptors(label.folderName, descriptions);
+  });
+}
+
 function loadLabeledImages2(paths) {
   const labels = [
     'Black Widow',
@@ -141,7 +176,7 @@ async function getImageFromSource(input) {
   return c;
 }
 
-function loadLabeledImages(paths) {
+function loadLabeledImages3(paths) {
   const labels = paths;
   return Promise.all(
     labels.map(async (label) => {
@@ -220,6 +255,7 @@ async function GetFilesFromFolders(folderPath, folderName = '') {
           fileURL: path.join(__dirname, folderPath + '/' + file.toString()),
         };
         fileObjects.push(imageObject);
+        console.log(fileObjects);
       }
     });
     return fileObjects;
@@ -237,6 +273,7 @@ const AccessLocalImages = async () => {
     CustomLogger.MessageLogger('Obtained Images');
     //CustomLogger.DataLogger(allData);
     //CustomLogger.MessageLogger("Training Models with data");
+    //loadLabeledImages(allData);
     //loadDataBase(allData);
     /**/
   } catch (ex) {
@@ -353,7 +390,9 @@ async function AccessDriveImages(accessID) {
 const AddImagesToModels = async () => {
   try {
     CustomLogger.MessageLogger('Training Models with data');
-    loadDataBase(labeledImagesPaths);
+    var data = await loadLabeledImages(labeledImagesPaths);
+    //await GetFilesFromFolders('./../Pictures');
+    return data;
   } catch (ex) {
     CustomLogger.ErrorLogger(ex);
   }
@@ -379,7 +418,12 @@ function logData() {
 }
 
 //const
-module.exports = { loadRequiredModels, AccessLocalImages, AddImagesToModels };
+module.exports = {
+  loadRequiredModels,
+  AccessLocalImages,
+  AddImagesToModels,
+  loadLabeledImages,
+};
 /*
 async function GetFilesFromFolders2(folderPath) {
   try {

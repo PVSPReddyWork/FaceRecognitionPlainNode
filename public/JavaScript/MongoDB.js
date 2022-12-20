@@ -1,4 +1,6 @@
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const { CustomLogger } = require('./CustomLogger.js');
+
 const uri =
   'mongodb+srv://pvspreddy_mongo:1234509876@cluster0.hxu712f.mongodb.net/?retryWrites=true&w=majority';
 const client = new MongoClient(uri, {
@@ -21,6 +23,32 @@ MongoClient(url, function(err, db) {
 //db//face_recognition
 //collection//face_descriptiors
 
+const createResponseObject = async (statusCode, responseData) => {
+  try {
+    const responseObject = {
+      statusCode: statusCode,
+      data: responseData,
+    };
+    return responseObject;
+  } catch (ex) {
+    CustomLogger.ErrorLogger(ex);
+  }
+};
+
+const SaveFaceDescriptiors = async (arrayOfValues) => {
+  try {
+    await client.connect();
+    const db = client.db('face_recognition');
+    const collection = db.collection('face_descriptiors');
+    const insertResult = await collection.insertMany(arrayOfValues);
+    client.close();
+    const result = `Insert Result: ${insertResult}`;
+    return result;
+  } catch (ex) {
+    CustomLogger.ErrorLogger(ex);
+  }
+};
+
 const TestMongoConnection = async () => {
   await client.connect();
   const db = client.db('test');
@@ -31,4 +59,4 @@ const TestMongoConnection = async () => {
   return values;
 };
 
-module.exports = { TestMongoConnection };
+module.exports = { TestMongoConnection, SaveFaceDescriptiors };
